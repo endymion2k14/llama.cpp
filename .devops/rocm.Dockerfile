@@ -16,7 +16,7 @@ FROM ${BASE_ROCM_DEV_CONTAINER} AS build
 # check https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html
 # check https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityryz/native_linux/native_linux_compatibility.html
 
-ARG ROCM_DOCKER_ARCH='gfx908;gfx90a;gfx942;gfx1030;gfx1100;gfx1101;gfx1151;gfx1150;gfx1200;gfx1201'
+ARG ROCM_DOCKER_ARCH='gfx908;gfx90a;gfx942;gfx1030;gfx1031;gfx1100;gfx1101;gfx1151;gfx1150;gfx1200;gfx1201'
 
 # Set ROCm architectures
 ENV AMDGPU_TARGETS=${ROCM_DOCKER_ARCH}
@@ -28,6 +28,7 @@ RUN apt-get update \
     git \
     libssl-dev \
     curl \
+    nano \
     libgomp1
 
 WORKDIR /app
@@ -93,7 +94,7 @@ ENTRYPOINT ["/app/tools.sh"]
 ### Light, CLI only
 FROM base AS light
 
-COPY --from=build /app/full/llama-cli /app/full/llama-completion /app
+COPY --from=build /app/full/llama-cli /app/full/llama-completion /app/
 
 WORKDIR /app
 
@@ -106,8 +107,14 @@ ENV LLAMA_ARG_HOST=0.0.0.0
 
 COPY --from=build /app/full/llama-server /app
 
+COPY --from=build /app/models/templates /app/templates
+COPY models.ini /app/models.ini
+
+COPY .devops/startup.sh /app/startup.sh
+RUN chmod +x /app/startup.sh
+
 WORKDIR /app
 
 HEALTHCHECK CMD [ "curl", "-f", "http://localhost:8080/health" ]
 
-ENTRYPOINT [ "/app/llama-server" ]
+ENTRYPOINT ["/app/startup.sh"]
